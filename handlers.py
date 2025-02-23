@@ -6,12 +6,11 @@ import aiogram.fsm
 import aiogram.fsm.context
 import aiogram.fsm.state
 
+import chatgpt_api
 
 import kb
 import text
 import states
-
-import chatgpt_api
 
 
 router = aiogram.Router()
@@ -40,10 +39,7 @@ async def process_question(message: aiogram.types.Message, state: aiogram.fsm.co
 
     typing_task = asyncio.create_task(keep_typing(message.bot, message.chat.id))
 
-    try:
-        response = await chatgpt_api.ask_chatgpt(user_question)
-    finally:
-        typing_task.cancel()
+    response = await chatgpt_api.ask_chatgpt(user_question)
 
     typing_task.cancel()
     
@@ -51,3 +47,20 @@ async def process_question(message: aiogram.types.Message, state: aiogram.fsm.co
     await state.clear()
 
 
+@router.message(aiogram.F.text == "Проверить сообщение") # command to ask a question
+async def ask_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
+    await state.set_state(states.Form.waiting_for_message)
+    await message.answer(text.check_message, parse_mode=aiogram.enums.ParseMode.MARKDOWN)
+
+
+@router.message(states.Form.waiting_for_message)
+async def process_message(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
+    user_message = message.text
+
+    typing_task = asyncio.create_task(keep_typing(message.bot, message.chat.id))
+
+    response = await chatgpt_api.check_chatgpt(user_message)
+
+    typing_task.cancel()
+    
+    await message.reply(response, parse_mode=aiogram.enums.ParseMode.MARKDOWN)
