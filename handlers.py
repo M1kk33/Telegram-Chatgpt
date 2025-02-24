@@ -30,37 +30,85 @@ async def start_command(message: aiogram.types.Message):
 @router.message(aiogram.F.text == "Задать вопрос") # command to ask a question
 async def ask_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
     await state.set_state(states.Form.waiting_for_question)
+    await state.update_data(history=[])
     await message.answer(text.ask_question)
-
-
-@router.message(states.Form.waiting_for_question) # processing the question
-async def process_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
-    user_question = message.text
-
-    typing_task = asyncio.create_task(keep_typing(message.bot, message.chat.id))
-
-    response = await chatgpt_api.ask_chatgpt(user_question)
-
-    typing_task.cancel()
-    
-    await message.reply(response)
-    await state.clear()
 
 
 @router.message(aiogram.F.text == "Проверить сообщение") # command to ask a question
 async def ask_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
     await state.set_state(states.Form.waiting_for_message)
+    await state.update_data(history=[])
     await message.answer(text.check_message, parse_mode=aiogram.enums.ParseMode.MARKDOWN)
 
 
-@router.message(states.Form.waiting_for_message)
-async def process_message(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
-    user_message = message.text
-
+@router.message(states.Form.waiting_for_question) # processing the question and adding it to the history
+async def process_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
     typing_task = asyncio.create_task(keep_typing(message.bot, message.chat.id))
 
-    response = await chatgpt_api.check_chatgpt(user_message)
+    data = await state.get_data()
+    history = data.get('history', [])
+
+    if len(history) > 0 and message.reply_to_message and message.reply_to_message.text not in history:
+        history.append(
+            {
+            "role": "assistant", 
+            "content": message.reply_to_message.text
+            }
+        )
+    else:
+        history = []
+
+    history.append(
+        {
+        "role": "user", 
+        "content": message.text
+        }
+    )
+
+    if len(history) > 10:
+        history = history[-10:]
+
+    response = await chatgpt_api.ask_chatgpt(history)
+
+    await state.update_data(history=history)
+
+    await message.reply(response, parse_mode=aiogram.enums.ParseMode.MARKDOWN)
 
     typing_task.cancel()
+
+
+@router.message(states.Form.waiting_for_message) # processing the message
+async def process_message(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
+    typing_task = asyncio.create_task(keep_typing(message.bot, message.chat.id))
+    user_message = message.text
+
+    data = await state.get_data()
+    history = data.get('history', [])
+
+    if len(history) > 0 and message.reply_to_message and message.reply_to_message.text not in history:
+        history.append(
+            {
+            "role": "assistant", 
+            "content": message.reply_to_message.text
+            }
+        )
+    else:
+        history = []
+
+    history.append(
+        {
+        "role": "user", 
+        "content": message.text
+        }
+    )
+
+    if len(history) > 10:
+        history = history[-10:]
+
+    response = await chatgpt_api.check_chatgpt(history)
+
+    await state.update_data(history=history)
     
     await message.reply(response, parse_mode=aiogram.enums.ParseMode.MARKDOWN)
+
+    typing_task.cancel()

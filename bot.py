@@ -5,10 +5,8 @@ import aiogram
 import aiogram.enums
 import aiogram.fsm
 import aiogram.types
-# import handlers
 
 import secret_data
-
 import handlers
 
 
