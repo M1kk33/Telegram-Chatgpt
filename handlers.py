@@ -31,7 +31,7 @@ async def start_command(message: aiogram.types.Message):
 async def ask_question(message: aiogram.types.Message, state: aiogram.fsm.context.FSMContext):
     await state.set_state(states.Form.waiting_for_question)
     await state.update_data(history=[])
-    await message.answer(text.ask_question)
+    await message.answer(text.ask_question, reply_markup=aiogram.types.ReplyKeyboardRemove())
 
 
 @router.message(aiogram.F.text == "Проверить сообщение") # command to ask a question

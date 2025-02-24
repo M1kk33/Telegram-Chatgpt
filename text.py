@@ -7,7 +7,7 @@ greet_user = (
     "проверить твое сообщение на грамотность.\n\n"
     "Что я умею?\n\n"
     f"/ask - {function_ask}\n"
-    f"/check - {function_check} #WIP\n"
+    f"/check - {function_check}\n"
     f"/settings - {function_settings} #WIP\n"
 )
 
